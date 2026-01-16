@@ -44,10 +44,6 @@ app.get("/", (req, res) => {
   res.send("Express server running successfully");
 });
 
-app.get("/users", (req, res) => {
-  res.send("User coming soon...");
-});
-
 // Start server
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
