@@ -27,17 +27,34 @@ const client = new MongoClient(uri, {
   }
 });
 
+
 // Connect to MongoDB
 async function run() {
   try {
     await client.connect();
-    await client.db("admin").command({ ping: 1 });
     console.log("MongoDB connected successfully ✅");
+
+    const database = client.db("Bistro-boss-restaurant");
+    const menuCollection = database.collection("menu");
+
+    // Get all menu data
+    app.get("/menu", async (req, res) => {
+      try {
+        const result = await menuCollection.find().toArray()
+        res.send(result)
+      } catch (error) {
+        res.status(500).send({ error: "Failed to fetch menu data" })
+      }
+    })
+
+
+
   } catch (err) {
     console.error("MongoDB connection failed:", err);
   }
 }
 run().catch(console.dir);
+
 
 // Routes
 app.get("/", (req, res) => {
