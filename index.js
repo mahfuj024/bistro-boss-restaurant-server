@@ -36,6 +36,7 @@ async function run() {
 
     const database = client.db("Bistro-boss-restaurant");
     const menuCollection = database.collection("menu");
+    const cartCollection = database.collection("cart");
 
     // Get all menu data
     app.get("/menu", async (req, res) => {
@@ -45,6 +46,26 @@ async function run() {
       } catch (error) {
         res.status(500).send({ error: "Failed to fetch menu data" })
       }
+    })
+
+    // Get cart by email id
+    app.get("/cart", async (req, res) => {
+      const email = req.query.email
+
+      if (!email) {
+        return res.status(400).send({ error: "Email query is required" });
+      }
+
+      const query = { email: email }
+      const result = await cartCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    // Save cart in database
+    app.post("/cart", async (req, res) => {
+      const cart = req.body
+      const result = await cartCollection.insertOne(cart)
+      res.send(result)
     })
 
 
