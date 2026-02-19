@@ -5,7 +5,7 @@ dotenv.config();
 // Import packages
 import express from "express";
 import cors from "cors";
-import { MongoClient, ServerApiVersion } from "mongodb";
+import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
 
 // Create Express app
 const app = express();
@@ -65,6 +65,14 @@ async function run() {
     app.post("/cart", async (req, res) => {
       const cart = req.body
       const result = await cartCollection.insertOne(cart)
+      res.send(result)
+    })
+
+    // Delete cart by email id
+    app.delete("/cart/:id", async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await cartCollection.deleteOne(query)
       res.send(result)
     })
 
