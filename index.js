@@ -35,8 +35,24 @@ async function run() {
     console.log("MongoDB connected successfully ✅");
 
     const database = client.db("Bistro-boss-restaurant");
+    const userCollection = database.collection("user");
     const menuCollection = database.collection("menu");
     const cartCollection = database.collection("cart");
+
+
+    // user related api
+    app.post("/user", async (req, res) => {
+      const user = req.body
+
+      const query = { email: user.email }
+      const existingUser = await userCollection.findOne(query)
+      if (existingUser) {
+        return res.send({ message: "user already exists", insertedId: null })
+      }
+
+      const result = await userCollection.insertOne(user)
+      res.send(result)
+    })
 
     // Get all menu data
     app.get("/menu", async (req, res) => {
