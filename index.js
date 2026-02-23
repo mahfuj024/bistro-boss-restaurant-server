@@ -1,24 +1,20 @@
-// Load environment variables first
-import dotenv from "dotenv";
-dotenv.config();
-
-// Import packages
 import express from "express";
 import cors from "cors";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
 
-// Create Express app
+dotenv.config(); // .env load
+
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB URI from .env
+// MongoDB URI
 const uri = process.env.DB_URI;
 
-// Create MongoClient
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -26,7 +22,6 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
-
 
 // Connect to MongoDB
 async function run() {
@@ -39,74 +34,132 @@ async function run() {
     const menuCollection = database.collection("menu");
     const cartCollection = database.collection("cart");
 
+    // ✅ JWT token
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" });
+      res.send({ token });
+    });
 
-    // user related api
-    app.post("/user", async (req, res) => {
-      const user = req.body
+    // ✅ verify JWT token
+    const verifyJwtToken = (req, res, next) => {
 
-      const query = { email: user.email }
-      const existingUser = await userCollection.findOne(query)
-      if (existingUser) {
-        return res.send({ message: "user already exists", insertedId: null })
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "Unauthorized access" });
       }
 
-      const result = await userCollection.insertOne(user)
-      res.send(result)
-    })
+      const token = req.headers.authorization.split(" ")[1];
 
-    // Get all menu data
-    app.get("/menu", async (req, res) => {
-      try {
-        const result = await menuCollection.find().toArray()
-        res.send(result)
-      } catch (error) {
-        res.status(500).send({ error: "Failed to fetch menu data" })
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(403).send({ error: true, message: "Forbidden access" });
+        }
+        req.decoded = decoded;
+        next(); // route access 
+      });
+    }
+
+    // ✅ verify admin (use verify admin after use verify token)
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email
+      const query = { email: email }
+      const user = await userCollection.findOne(query)
+      const isAdmin = user?.role === "admin"
+
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden access" });
       }
-    })
+      next()
+    }
 
-    // Get cart by email id
-    app.get("/cart", async (req, res) => {
-      const email = req.query.email
+    // ✅ Make admin
+    app.patch("/user/admin/:id", verifyJwtToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = { $set: { role: "admin" } };
+      const result = await userCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
 
-      if (!email) {
-        return res.status(400).send({ error: "Email query is required" });
+    // ✅ Get admin
+    app.get("/user/admin/:email", verifyJwtToken, async (req, res) => {
+      const email = req.params.email
+
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "Forbidden access" })
       }
 
       const query = { email: email }
-      const result = await cartCollection.find(query).toArray()
-      res.send(result)
+      const user = await userCollection.findOne(query)
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin"
+      }
+      res.send({ admin })
     })
 
-    // Save cart in database
+    // ✅ Get all users
+    app.get("/user", verifyJwtToken, verifyAdmin, async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+
+    // ✅ Save user
+    app.post("/user", async (req, res) => {
+      const user = req.body;
+      const existingUser = await userCollection.findOne({ email: user.email });
+      if (existingUser) return res.send({ message: "user already exists", insertedId: null });
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // ✅ Delete user
+    app.delete("/user/:id", verifyJwtToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const result = await userCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    // ✅ Get all menu
+    app.get("/menu", async (req, res) => {
+      const result = await menuCollection.find().toArray();
+      res.send(result);
+    });
+
+    // ✅ Get cart by email
+    app.get("/cart", verifyJwtToken, async (req, res) => {
+      const email = req.query.email;
+      if (!email) return res.status(400).send({ error: "Email query is required" });
+      const result = await cartCollection.find({ email }).toArray();
+      res.send(result);
+    });
+
+    // ✅ Save cart
     app.post("/cart", async (req, res) => {
-      const cart = req.body
-      const result = await cartCollection.insertOne(cart)
-      res.send(result)
-    })
+      const cart = req.body;
+      const result = await cartCollection.insertOne(cart);
+      res.send(result);
+    });
 
-    // Delete cart by email id
-    app.delete("/cart/:id", async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const result = await cartCollection.deleteOne(query)
-      res.send(result)
-    })
-
-
+    // ✅ Delete cart
+    app.delete("/cart/:id", verifyJwtToken, async (req, res) => {
+      const id = req.params.id;
+      const result = await cartCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
 
   } catch (err) {
     console.error("MongoDB connection failed:", err);
   }
 }
+
 run().catch(console.dir);
 
-
-// Routes
+// Root route
 app.get("/", (req, res) => {
   res.send("Express server running successfully");
 });
 
-// Start server
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
