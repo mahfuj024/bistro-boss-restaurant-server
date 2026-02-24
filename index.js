@@ -126,6 +126,22 @@ async function run() {
       res.send(result);
     });
 
+    // ✅ Add new cart in menuCollection
+    app.post("/menu", verifyJwtToken, verifyAdmin, async (req, res) => {
+      try {
+        const cart = req.body;
+        if (!cart || !cart.name) {
+          return res.status(400).send({ message: "Invalid data" });
+        }
+
+        const result = await menuCollection.insertOne(cart);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Server Error" });
+      }
+    });
+
     // ✅ Get cart by email
     app.get("/cart", verifyJwtToken, async (req, res) => {
       const email = req.query.email;
