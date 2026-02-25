@@ -126,6 +126,25 @@ async function run() {
       res.send(result);
     });
 
+    // ✅ Get menu item by id
+    app.get("/menu/:id", async (req, res) => {
+      const id = req.params.id
+
+      try {
+        const query = { _id: new ObjectId(id) }
+        const result = await menuCollection.findOne(query)
+
+        if (!result) {
+          return res.status(404).send({ message: "Item not found" })
+        }
+
+        res.send(result)
+      } catch (error) {
+        console.error(error)
+        res.status(500).send({ message: "Server error" })
+      }
+    })
+
     // ✅ Add new cart in menuCollection
     app.post("/menu", verifyJwtToken, verifyAdmin, async (req, res) => {
       try {
@@ -141,6 +160,13 @@ async function run() {
         res.status(500).send({ message: "Server Error" });
       }
     });
+
+    // ✅ Delete menu item
+    app.delete("/menu/:id", verifyJwtToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id
+      const result = await menuCollection.deleteOne({ _id: new ObjectId(id) })
+      res.send(result)
+    })
 
     // ✅ Get cart by email
     app.get("/cart", verifyJwtToken, async (req, res) => {
