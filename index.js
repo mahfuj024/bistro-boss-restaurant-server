@@ -9,13 +9,8 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// ✅ Configure CORS properly
-app.use(cors({
-  origin: "https://bistro-boss-restaurant-3f7b2.web.app", // allow frontend origin
-  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-app.options("*", cors()); // preflight OPTIONS request
+
+app.use(cors()); // preflight OPTIONS request
 app.use(express.json());
 
 // MongoDB URI
